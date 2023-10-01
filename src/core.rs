@@ -20,24 +20,37 @@ pub trait ToSMILES {
 
 /// This enum basically represents the periodic table of this library.
 #[allow(missing_docs)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Atom {
     Carbon,
     Nitrogen,
     Oxygen,
+    Sulphur,
 }
 
 impl Atom {
-    fn get_valency(&self, _bonds: u64) -> u64 {
+    fn get_valency(&self, bonds: u64) -> u64 {
         match self {
             Self::Carbon => 4,
             Self::Nitrogen => 3,
             Self::Oxygen => 2,
+            Self::Sulphur => {
+                if bonds <= 2 {
+                    2
+                } else if bonds <= 4 {
+                    4
+                } else {
+                    6
+                }
+            }
         }
     }
 
     fn get_attached_hydrogens(&self, bonds: u64) -> u64 {
         let valency = self.get_valency(bonds);
+        if bonds > valency {
+            panic!("Too many bonds to {:?} atom", self)
+        }
         valency - bonds
     }
 }
@@ -48,6 +61,7 @@ impl ToChemfig for Atom {
             Self::Carbon => String::new(),
             Self::Nitrogen => String::from("N"),
             Self::Oxygen => String::from("O"),
+            Self::Sulphur => String::from("S"),
         }
     }
 }
@@ -58,6 +72,7 @@ impl ToSMILES for Atom {
             Self::Carbon => String::from("C"),
             Self::Nitrogen => String::from("N"),
             Self::Oxygen => String::from("O"),
+            Self::Sulphur => String::from("S"),
         }
     }
 }
@@ -388,7 +403,7 @@ impl Chain {
         );
     }
 
-    fn draw_chemfig(&self, angle_offset: i64, _prev_bond: BondType) -> String {
+    fn draw_chemfig(&self, angle_offset: i64, prev_bond: BondType) -> String {
         let mut s = String::new();
         match self.chain_type {
             ChainType::Open => {
@@ -398,15 +413,33 @@ impl Chain {
                     let atom = &self.atoms[i];
                     let side_chains = &self.side_chains[i];
 
+                    s += &atom.0.chemfig_repr();
+
+                    let hydrogens = atom.0.get_attached_hydrogens(
+                        side_chains.iter().map(|(_, b)| b.num_bonds()).sum::<u64>()
+                            + if i > 0 {
+                                self.atoms[i - 1].1.num_bonds()
+                            } else {
+                                0
+                            }
+                            + self.atoms[i].1.num_bonds()
+                            + prev_bond.num_bonds(),
+                    );
+                    if hydrogens > 0 && atom.0 != Atom::Carbon {
+                        if hydrogens > 1 {
+                            s += format!("H_{}", hydrogens).as_str()
+                        } else {
+                            s += "H"
+                        }
+                    }
+
                     if atom.1 == BondType::None {
-                        s += &atom.0.chemfig_repr();
                         break;
                     }
 
-                    s += &atom.0.chemfig_repr();
                     for side_chain in side_chains {
                         s += format!(
-                            "([:{}]{}{})",
+                            "([:{},,1]{}{})",
                             angle + 120 * sign,
                             side_chain.1.chemfig_repr(),
                             side_chain
@@ -416,7 +449,7 @@ impl Chain {
                         .as_str()
                     }
 
-                    s += format!("{}[:{}]", atom.1.chemfig_repr(), angle).as_str();
+                    s += format!("{}[:{},,1]", atom.1.chemfig_repr(), angle).as_str();
 
                     angle += 60 * sign;
                     sign *= -1;
@@ -427,15 +460,59 @@ impl Chain {
                 let len = self.atoms.len();
                 let inc = (360 / len) as i64;
                 let mut angle = -(90 + inc);
-                s += format!("*{{{}}}(", self.atoms.len()).as_str();
-                for i in 0..self.atoms.len() {
+                s += format!(
+                    "{}{}*{{{}}}(-",
+                    {
+                        let hydrogens = self.atoms[0].0.get_attached_hydrogens(
+                            self.side_chains[0]
+                                .iter()
+                                .map(|(_, b)| b.num_bonds())
+                                .sum::<u64>()
+                                + self.atoms[0].1.num_bonds()
+                                + self.atoms[self.atoms.len() - 1].1.num_bonds()
+                                + prev_bond.num_bonds(),
+                        );
+
+                        if hydrogens > 0 && self.atoms[0].0 != Atom::Carbon {
+                            if hydrogens > 1 {
+                                format!("H_{}", hydrogens)
+                            } else {
+                                String::from("H")
+                            }
+                        } else {
+                            String::new()
+                        }
+                    },
+                    self.atoms[0].0.chemfig_repr(),
+                    self.atoms.len()
+                )
+                .as_str();
+                for i in 1..self.atoms.len() {
                     let atom = &self.atoms[i];
                     let side_chains = &self.side_chains[i];
                     s += atom.0.chemfig_repr().as_str();
 
+                    let hydrogens = atom.0.get_attached_hydrogens(
+                        side_chains.iter().map(|(_, b)| b.num_bonds()).sum::<u64>()
+                            + if i > 0 {
+                                self.atoms[i - 1].1.num_bonds()
+                            } else {
+                                0
+                            }
+                            + self.atoms[i].1.num_bonds()
+                            + prev_bond.num_bonds(),
+                    );
+                    if hydrogens > 0 && atom.0 != Atom::Carbon {
+                        if hydrogens > 1 {
+                            s += format!("H_{}", hydrogens).as_str()
+                        } else {
+                            s += "H"
+                        }
+                    }
+
                     for side_chain in side_chains {
                         s += format!(
-                            "({}{})",
+                            "({}[,,1]{})",
                             side_chain.1.chemfig_repr(),
                             side_chain
                                 .0
@@ -444,7 +521,7 @@ impl Chain {
                         .as_str();
                     }
 
-                    s += atom.1.chemfig_repr().as_str();
+                    s += format!("{}[,,1]", atom.1.chemfig_repr()).as_str();
 
                     angle += inc
                 }
