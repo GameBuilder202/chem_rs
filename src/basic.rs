@@ -33,6 +33,8 @@ pub fn root_word_chain(word: &str) -> Chain {
     }
 }
 
+// Oxygen-related functional groups
+
 /// Returns an alcohol functiona group.
 /// Can also be used as (oyxgen of) ketone or ether functional group.
 pub fn oxygen() -> Chain {
@@ -56,6 +58,8 @@ pub fn carboxylic_acid() -> Chain {
 pub fn peroxide() -> Chain {
     Chain::new(Atom::Oxygen).add_atom(Atom::Oxygen, BondType::Single)
 }
+
+// Nitrogen-related functional groups
 
 /// Returns an amine functional group.
 /// Can also be used as an imine functional group.
@@ -178,13 +182,90 @@ pub fn pyridine() -> Chain {
         .convert_chain_type(ChainType::MonoCyclic)
 }
 
-/// Returns a carbamate group.
+/// Returns a carbamate functional group.
 pub fn carbamate() -> Chain {
     Chain::new(Atom::Oxygen)
         .add_atom(Atom::Carbon, BondType::Single)
         .add_side_chain(&oxygen(), 2, BondType::Double(false))
         .add_atom(Atom::Nitrogen, BondType::Single)
 }
+
+// Sulphur-related functional groups
+
+/// Returns a thiol functional group.
+/// Can also be used as (sulphur of) sulphide functional group.
+pub fn thiol() -> Chain {
+    Chain::new(Atom::Sulphur)
+}
+
+/// Returns a disulphide functional group.
+pub fn disulphide() -> Chain {
+    Chain::new(Atom::Sulphur).add_atom(Atom::Sulphur, BondType::Single)
+}
+
+/// Returns a sulphoxide functional group.
+pub fn sulphoxide() -> Chain {
+    Chain::new(Atom::Sulphur).add_side_chain(&oxygen(), 1, BondType::Double(false))
+}
+
+/// Returns a sulphone functional group.
+pub fn sulphone() -> Chain {
+    Chain::new(Atom::Sulphur)
+        .add_side_chain(&oxygen(), 1, BondType::Double(false))
+        .add_side_chain(&oxygen(), 1, BondType::Double(false))
+}
+
+/// Returns a sulphinic acid functional group.
+pub fn sulphinic_acid() -> Chain {
+    Chain::new(Atom::Sulphur)
+        .add_side_chain(&oxygen(), 1, BondType::Double(false))
+        .add_atom(Atom::Oxygen, BondType::Single)
+}
+
+/// Returns a sulphonic acid functional group.
+/// Can also be used as ester functional group by adding more atoms.
+pub fn sulphonic_acid() -> Chain {
+    Chain::new(Atom::Sulphur)
+        .add_side_chain(&oxygen(), 1, BondType::Double(false))
+        .add_side_chain(&oxygen(), 1, BondType::Double(false))
+        .add_atom(Atom::Oxygen, BondType::Single)
+}
+
+/// Returns a thiocyanate functional group.
+pub fn thiocyanate() -> Chain {
+    Chain::new(Atom::Sulphur)
+        .add_atom(Atom::Carbon, BondType::Single)
+        .add_atom(Atom::Nitrogen, BondType::Triple)
+}
+
+/// Returns an isothiocyanate functional group.
+pub fn isothiocyanate() -> Chain {
+    Chain::new(Atom::Nitrogen)
+        .add_atom(Atom::Carbon, BondType::Double(false))
+        .add_atom(Atom::Sulphur, BondType::Double(false))
+}
+
+/// Returns a thioketone functional group.
+/// Can also be used as a thial functional group.
+pub fn thioketone() -> Chain {
+    Chain::new(Atom::Carbon).add_side_chain(&Chain::new(Atom::Sulphur), 1, BondType::Double(false))
+}
+
+/// Returns a carbiothioic-S-acid functional group.
+pub fn carbiothioic_s_acid() -> Chain {
+    Chain::new(Atom::Carbon)
+        .add_side_chain(&oxygen(), 1, BondType::Double(false))
+        .add_atom(Atom::Sulphur, BondType::Single)
+}
+
+/// Returns a carbiothioic-O-acid functional group.
+pub fn carbiothioic_o_acid() -> Chain {
+    Chain::new(Atom::Carbon)
+        .add_side_chain(&thiol(), 1, BondType::Double(false))
+        .add_atom(Atom::Oxygen, BondType::Single)
+}
+
+// Other functional groups
 
 /// Returns a benzene/phenyl ring.
 pub fn benzene() -> Chain {

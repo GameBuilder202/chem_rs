@@ -93,7 +93,7 @@ pub enum ChainType {
     ///
     /// The arguments directly correspond to the IUPAC nomenclature.
     ///
-    /// Note: See macro [`polycyclic`] if you want to create this variant with an easier syntax.
+    /// Note: See macro [polycyclic](`crate::polycyclic`) if you want to create this variant with an easier syntax.
     ///
     /// # Examples
     /// ```
@@ -102,8 +102,8 @@ pub enum ChainType {
     /// // bicyclo[3.2.0]heptane
     /// let chain_type1 = ChainType::PolyCyclic(3, 2, 0, vec![]);
     ///
-    /// // tetracyclo[6.6.3.0(2,7).0(9,14)]heptadecane
-    /// let chain_type2 = ChainType::PolyCyclic(6, 6, 3, vec![(0, 2, 7), (0, 9, 14)]);
+    /// // tetracyclo[6.6.3.0(2,7).1(9,14)]octadecane
+    /// let chain_type2 = ChainType::PolyCyclic(6, 6, 3, vec![(0, 2, 7), (1, 9, 14)]);
     /// ```
     PolyCyclic(u64, u64, u64, Vec<(u64, u64, u64)>),
 
@@ -123,7 +123,23 @@ pub enum ChainType {
     Spiro(u64, u64),
 }
 
-/// A tiny macro to make creation of [`ChainType::PolyCyclic`] easier
+/// A tiny macro to make creation of [`ChainType::PolyCyclic`] easier.
+///
+/// Syntax is similar to that of IUPAC nomenclature,
+/// `polycyclic!(<major ring size> . <minor ring size> . <bridge length> [. <bridge length>(<locant1>, <locant2>)]*)`
+/// (spaces before/after dots are necessary for parsing reasons). `<...>` should be replaced by an integer,
+/// and `[...]` is optional and can be repeated 0 or more times.
+///
+/// # Examples
+/// ```
+/// use chem_rs::polycyclic;
+///
+/// // bicyclo[3.2.0]heptane
+/// let chain_type1 = polycyclic!(3 . 2 . 0);
+///
+/// // tetracyclo[6.6.3.0(2,7).0(9,14)]octadecane
+/// let chain_type2 = polycyclic!(6 . 6 . 3 . 0(2, 7) . 1(9, 14));
+/// ```
 #[macro_export]
 macro_rules! polycyclic {
     // [$major:literal . $minor:literal . $bridge_len:literal] => {{
@@ -133,7 +149,7 @@ macro_rules! polycyclic {
     [$major:literal . $minor:literal . $bridge_len:literal $(. $len:literal($start:literal, $end:literal))*] => {{
         use chem_rs::core::ChainType;
         ChainType::PolyCyclic($major, $minor, $bridge_len, vec![
-            $(($len, $start, $end)),+
+            $(($len, $start, $end)),*
         ])
     }};
 }
@@ -142,7 +158,7 @@ macro_rules! polycyclic {
 /// to the *next* atom of the chain or to a side chain.
 ///
 /// *Note: Side chains in chem_rs do not always correspond
-/// to alkyl substituenta.*
+/// to alkyl substituents.*
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum BondType {
     /// Reserved for the last atom of an open chain or of
@@ -303,7 +319,7 @@ impl Chain {
     ///
     /// let dodeca_4_en_7_yne = Chain::new(Atom::Carbon)
     ///     .add_atoms(Atom::Carbon, BondType::Single, 3)
-    ///     .add_atoms(Atom::Carbon, BondType::Double, 3)
+    ///     .add_atoms(Atom::Carbon, BondType::Double(false), 3)
     ///     .add_atoms(Atom::Carbon, BondType::Triple, 4);
     /// ```
     pub fn add_atoms(self, atom: Atom, bond_type: BondType, n: usize) -> Self {
@@ -461,7 +477,7 @@ impl Chain {
                 let inc = (360 / len) as i64;
                 let mut angle = -(90 + inc);
                 s += format!(
-                    "{}{}*{{{}}}(-",
+                    "{}{}*{{{}}}({}",
                     {
                         let hydrogens = self.atoms[0].0.get_attached_hydrogens(
                             self.side_chains[0]
@@ -484,7 +500,8 @@ impl Chain {
                         }
                     },
                     self.atoms[0].0.chemfig_repr(),
-                    self.atoms.len()
+                    self.atoms.len(),
+                    self.atoms[0].1.chemfig_repr(),
                 )
                 .as_str();
                 for i in 1..self.atoms.len() {
@@ -594,7 +611,7 @@ impl ToChemfig for Chain {
     ///
     /// # Examples
     /// ```
-    /// use chem_rs::core::{Chain, Atom, ChainType, BondType};
+    /// use chem_rs::core::{Chain, Atom, ChainType, BondType, ToChemfig};
     ///
     /// let cyclohexane = Chain::new_carbon_chain(6, ChainType::MonoCyclic);
     /// println!("cyclohexane chemfig: {}", cyclohexane.chemfig_repr());
@@ -613,7 +630,7 @@ impl ToSMILES for Chain {
     ///
     /// # Examples
     /// ```
-    /// use chem_rs::core::{Chain, Atom, ChainType, BondType};
+    /// use chem_rs::core::{Chain, Atom, ChainType, BondType, ToSMILES};
     ///
     /// let cyclohexane = Chain::new_carbon_chain(6, ChainType::MonoCyclic);
     /// println!("cyclohexane SMILES: {}", cyclohexane.smiles());
